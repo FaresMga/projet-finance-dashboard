@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fundamental Analysis — Financial Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --surface: #111318;
+    --surface2: #181b23;
+    --border: #1e2330;
+    --accent: #f5c842;
+    --accent2: #e85d3a;
+    --accent3: #4fc3f7;
+    --text: #e8eaf0;
+    --muted: #5a6175;
+    --green: #3dd68c;
+    --red: #e85d3a;
+    --orange: #f0924a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── NOISE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 48px 60px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .header-left h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .header-left h1 span {
+    color: var(--accent);
+  }
+
+  .header-left p {
+    margin-top: 10px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .header-badge {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  .header-badge .live {
+    color: var(--green);
+    font-size: 0.65rem;
+  }
+
+  /* ─── ASSET NAV TABS ─── */
+  .asset-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 11, 15, 0.96);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 60px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .asset-nav::-webkit-scrollbar { height: 0; }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    padding: 18px 28px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  /* ─── MAIN CONTENT ─── */
+  main {
+    position: relative;
+    z-index: 1;
+    padding: 48px 60px;
+    max-width: 1400px;
+  }
+
+  .asset-section { display: none; }
+  .asset-section.active { display: block; }
+
+  /* ─── ASSET HERO ─── */
+  .asset-hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    margin-bottom: 48px;
+    align-items: start;
+  }
+
+  .asset-title {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 16px;
+  }
+
+  .asset-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    flex-shrink: 0;
+  }
+
+  .asset-name {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+
+  .asset-fullname {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .asset-summary {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #b0b8cc;
+    max-width: 700px;
+  }
+
+  /* ─── SENTIMENT BOX ─── */
+  .sentiment-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    min-width: 220px;
+    text-align: center;
+  }
+
+  .sentiment-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .sentiment-score {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .sentiment-text {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ─── GRID LAYOUT ─── */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .analysis-grid.wide {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: #2d3346; }
+
+  .card.accent-left {
+    border-left: 3px solid var(--accent);
+  }
+
+  .card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.63rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+
+  .card-body {
+    font-size: 0.88rem;
+    line-height: 1.75;
+    color: #9099b0;
+  }
+
+  /* ─── KEY METRICS ─── */
+  .metrics-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .metric-key {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .metric-val {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .metric-val.up { color: var(--green); }
+  .metric-val.down { color: var(--red); }
+  .metric-val.neutral { color: var(--accent); }
+
+  .metric-sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ─── TIMELINE ─── */
+  .timeline {
+    position: relative;
+    padding-left: 24px;
+    border-left: 2px solid var(--border);
+  }
+
+  .timeline-item {
+    margin-bottom: 24px;
+    position: relative;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+
+  .timeline-date {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .timeline-text {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #9099b0;
+  }
+
+  /* ─── TAGS ─── */
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .tag.bull { color: var(--green); border-color: rgba(61,214,140,0.3); background: rgba(61,214,140,0.06); }
+  .tag.bear { color: var(--red); border-color: rgba(232,93,58,0.3); background: rgba(232,93,58,0.06); }
+  .tag.neutral { color: var(--accent); border-color: rgba(245,200,66,0.3); background: rgba(245,200,66,0.06); }
+
+  /* ─── SECTION DIVIDER ─── */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 40px 0 28px;
+  }
+
+  .section-divider h2 {
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── QUOTE BLOCK ─── */
+  .quote-block {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 12px 12px 0;
+    padding: 20px 24px;
+    margin: 16px 0;
+    font-style: italic;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #b8c0d4;
+  }
+
+  .quote-source {
+    margin-top: 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--muted);
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  /* ─── VIDEO EMBED ─── */
+  .video-wrapper {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .video-wrapper iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+
+  /* ─── RISK TABLE ─── */
+  .risk-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .risk-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .risk-table td {
+    padding: 12px 14px;
+    color: #9099b0;
+    border-bottom: 1px solid rgba(30, 35, 48, 0.5);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .risk-table td:first-child { color: #fff; font-weight: 600; }
+
+  .impact {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .impact.high { background: rgba(232,93,58,0.15); color: var(--red); }
+  .impact.med  { background: rgba(240,146,74,0.15); color: var(--orange); }
+  .impact.low  { background: rgba(61,214,140,0.15); color: var(--green); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    position: relative;
+    z-index: 1;
+    margin-top: 60px;
+    padding: 32px 60px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  footer p {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--muted);
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .asset-section.active > * {
+    animation: fadeUp 0.35s ease forwards;
+  }
+
+  @media (max-width: 900px) {
+    header { padding: 28px 24px 20px; flex-direction: column; align-items: flex-start; }
+    .asset-nav { padding: 0 24px; }
+    main { padding: 28px 24px; }
+    .analysis-grid { grid-template-columns: 1fr; }
+    .analysis-grid.wide { grid-template-columns: 1fr; }
+    .asset-hero { grid-template-columns: 1fr; }
+    footer { padding: 24px; flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Fundamental <span>Analysis</span></h1>
+    <p>Financial Analytics Project — News &amp; Macro Research — April 2026</p>
+  </div>
+  <div class="header-badge">
+    <div class="live">● LIVE DATA — Q2 2026</div>
+    <div>Assets: BTC · NDX · OIL · NVDA · GOLD</div>
+    <div>Analysis: Fundamental / News</div>
+  </div>
+</header>
+
+<!-- ─── ASSET NAVIGATION ─── -->
+<nav class="asset-nav">
+  <button class="tab-btn active" onclick="showAsset('btc', this)">
+    <span class="tab-dot" style="background:#f7931a"></span> BTC
+  </button>
+  <button class="tab-btn" onclick="showAsset('ndx', this)">
+    <span class="tab-dot" style="background:#4fc3f7"></span> NDX
+  </button>
+  <button class="tab-btn" onclick="showAsset('oil', this)">
+    <span class="tab-dot" style="background:#e85d3a"></span> OIL
+  </button>
+  <button class="tab-btn" onclick="showAsset('nvda', this)">
+    <span class="tab-dot" style="background:#76b900"></span> NVDA
+  </button>
+  <button class="tab-btn" onclick="showAsset('gold', this)">
+    <span class="tab-dot" style="background:#f5c842"></span> GOLD
+  </button>
+</nav>
+
+<main>
+
+  <!-- ════════════════════════════════════════════
+       BTC — Bitcoin
+  ════════════════════════════════════════════ -->
+  <section id="btc" class="asset-section active">
+
+    <div class="asset-hero">
+      <div>
+        <div class="asset-title">
+          <div class="asset-icon" style="background:rgba(247,147,26,0.12); border:1px solid rgba(247,147,26,0.25);">₿</div>
+          <div>
+            <div class="asset-name">Bitcoin</div>
+            <div class="asset-fullname">BTC / USD — Cryptocurrency</div>
+          </div>
+        </div>
+        <p class="asset-summary">
+          Bitcoin est l'actif le plus transformateur de la dernière décennie. Porté par le halving d'avril 2024, l'approbation des ETF spot en janvier 2024, et une adoption institutionnelle sans précédent, BTC a établi un ATH à <strong style="color:#fff">~$126 200</strong> en octobre 2025. En 2026, la dynamique est dominée par les flux ETF institutionnels — qui représentent désormais 12x le volume journalier de mining — et l'adoption souveraine.
+        </p>
+        <div class="tags" style="margin-top:16px">
+          <span class="tag bull">Post-Halving Cycle</span>
+          <span class="tag bull">ETF Institutional Inflows</span>
+          <span class="tag neutral">Liquidity-Driven</span>
+          <span class="tag bull">Sovereign Adoption</span>
+          <span class="tag bear">Regulatory Uncertainty</span>
+        </div>
+      </div>
+      <div class="sentiment-box">
+        <div class="sentiment-label">Sentiment Score</div>
+        <div class="sentiment-score" style="color:#3dd68c">74</div>
+        <div class="sentiment-text" style="color:#3dd68c">🟢 Bullish</div>
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:8px; font-family:'Space Mono', monospace;">
+          Horizon: 6–12 mois
+        </div>
+      </div>
+    </div>
+
+    <!-- Key metrics -->
+    <div class="metrics-row">
+      <div class="metric">
+        <div class="metric-key">ATH (Oct. 2025)</div>
+        <div class="metric-val neutral">$126 198</div>
+        <div class="metric-sub">Nouveau record historique</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">ETF AUM (IBIT)</div>
+        <div class="metric-val up">$70.8B</div>
+        <div class="metric-sub">BlackRock — 773K BTC</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">BTC ETF Complex</div>
+        <div class="metric-val up">$113.8B</div>
+        <div class="metric-sub">Cumul net inflows: $56.9B</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Halving 2024</div>
+        <div class="metric-val neutral">3.125 BTC</div>
+        <div class="metric-sub">Récompense / bloc — 450 BTC/j</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Supply Minée</div>
+        <div class="metric-val">~94%</div>
+        <div class="metric-sub">Rareté croissante</div>
+      </div>
+    </div>
+
+    <div class="analysis-grid">
+      <!-- Halving -->
+      <div class="card accent-left">
+        <div class="card-label">Halving Cycle</div>
+        <div class="card-title">La Supply Shock de 2024</div>
+        <div class="card-body">
+          Le halving d'avril 2024 a réduit la récompense journalière à <strong style="color:#fff">450 BTC/jour</strong> (~$40M). Historiquement, chaque halving précède un bull run de 12–18 mois. Cependant, les flux ETF — régulièrement >$500M/jour — éclipsent désormais cet effet. En 2026, le cycle des 4 ans montre des signes d'essoufflement au profit d'un cycle de liquidité macro.
+        </div>
+      </div>
+      <!-- ETF -->
+      <div class="card accent-left">
+        <div class="card-label">ETF &amp; Adoption Institutionnelle</div>
+        <div class="card-title">Le Game-Changer de l'Ère Institutionnelle</div>
+        <div class="card-body">
+          Les ETF Bitcoin spot, lancés en janvier 2024, ont absorbé plus de BTC que les mineurs n'en produisent sur 3 ans. Strategy (ex-MicroStrategy) détient <strong style="color:#fff">713 502 BTC</strong>. Le 6 mars 2025, les États-Unis ont créé une <em>Strategic Bitcoin Reserve</em> par décret présidentiel. 27 pays ont désormais une exposition directe à BTC.
+        </div>
+      </div>
+      <!-- Macro -->
+      <div class="card accent-left">
+        <div class="card-label">Macro &amp; Corrélation M2</div>
+        <div class="card-title">BTC = Asset de Liquidité Mondiale</div>
+        <div class="card-body">
+          BTC présente une forte corrélation avec la masse monétaire mondiale M2 (coefficient ~0.78 sur 2020–2023). La Fed a réduit ses taux 3 fois en 2025. L'arrêt du QT en décembre 2025 crée un environnement favorable. BTC réagit à la liquidité macro plus qu'aux fondamentaux intrinsèques désormais.
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="section-divider"><h2>Chronologie des événements clés</h2></div>
+    <div class="card">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-date">Janvier 2024</div>
+          <div class="timeline-text">Approbation des premiers ETF Bitcoin spot aux USA (BlackRock IBIT, Fidelity FBTC). Entrée massive des capitaux institutionnels sur le marché crypto.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Avril 2024</div>
+          <div class="timeline-text">4ème halving : récompense réduite de 6.25 à 3.125 BTC par bloc. Premier halving de l'histoire où BTC établit un ATH <em>avant</em> l'événement.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Novembre 2024</div>
+          <div class="timeline-text">Élection de Donald Trump, fervent pro-Bitcoin. La promesse d'une réserve stratégique nationale en BTC propulse les prix en territoire parabolique.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Octobre 2025</div>
+          <div class="timeline-text">Nouvel ATH à <strong>$126 198</strong>. Le rally post-halving 2024 confirme la tendance, mais avec une amplitude plus modeste (+100%) que les cycles précédents.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Mars 2026</div>
+          <div class="timeline-text">États-Unis : passage de la <em>Clarity Act</em> par la Chambre, fournissant un cadre réglementaire pour les marchés de capitaux crypto. Grayscale prédit un nouvel ATH H1 2026.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quote -->
+    <div class="quote-block">
+      "Institutional re-engagement accelerates alongside sovereign adoption. Multiple bullish catalysts align. 401(k) products launch at scale, opening the $40 trillion retirement capital pool."
+      <div class="quote-source">— Amberdata Research, Février 2026</div>
+    </div>
+
+    <!-- Risk table -->
+    <div class="section-divider"><h2>Matrice des risques</h2></div>
+    <div class="card">
+      <table class="risk-table">
+        <thead>
+          <tr>
+            <th>Facteur de Risque</th>
+            <th>Description</th>
+            <th>Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Resserrement Monétaire Fed</td>
+            <td>Hausse des taux = pression sur les actifs risqués, corrélation de plus en plus forte avec BTC</td>
+            <td><span class="impact high">ÉLEVÉ</span></td>
+          </tr>
+          <tr>
+            <td>Risque Réglementaire</td>
+            <td>Possibilité d'interdiction dans des marchés clés ou de taxation des gains crypto</td>
+            <td><span class="impact high">ÉLEVÉ</span></td>
+          </tr>
+          <tr>
+            <td>Ventes ETF Institutionnelles</td>
+            <td>Un retrait massif des ETF pourrait créer un choc de vente sans précédent</td>
+            <td><span class="impact med">MOYEN</span></td>
+          </tr>
+          <tr>
+            <td>Diminution de l'Effet Halving</td>
+            <td>Avec 94% du supply miné, le choc d'offre de chaque halving s'atténue mathématiquement</td>
+            <td><span class="impact low">FAIBLE</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Video -->
+    <div class="section-divider"><h2>Ressource Vidéo</h2></div>
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/41JCpzvnn88" title="Bitcoin 2026 Analysis" allowfullscreen loading="lazy"></iframe>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       NDX — Nasdaq 100
+  ════════════════════════════════════════════ -->
+  <section id="ndx" class="asset-section">
+
+    <div class="asset-hero">
+      <div>
+        <div class="asset-title">
+          <div class="asset-icon" style="background:rgba(79,195,247,0.1); border:1px solid rgba(79,195,247,0.25);">📊</div>
+          <div>
+            <div class="asset-name">Nasdaq 100</div>
+            <div class="asset-fullname">NDX — US Tech Index (100 Largest Non-Financial)</div>
+          </div>
+        </div>
+        <p class="asset-summary">
+          Le Nasdaq-100 est l'indice de référence des 100 plus grandes entreprises non-financières du Nasdaq, dominé à 55% par la tech. Porté par le boom de l'IA en 2024–2025, il a gagné <strong style="color:#fff">21% en 2025</strong> et atteint un ATH à 26 120 pts en octobre 2025. En Q1 2026, l'indice subit une correction de ~9% due à l'"AI fatigue" et à la remontée des taux longs.
+        </p>
+        <div class="tags" style="margin-top:16px">
+          <span class="tag bull">AI Mega-Theme</span>
+          <span class="tag bull">Hyperscaler CapEx $700B</span>
+          <span class="tag bear">AI Fatigue 2026</span>
+          <span class="tag bear">Taux Longs Élevés</span>
+          <span class="tag neutral">Tariff Risk</span>
+        </div>
+      </div>
+      <div class="sentiment-box">
+        <div class="sentiment-label">Sentiment Score</div>
+        <div class="sentiment-score" style="color:#f0924a">58</div>
+        <div class="sentiment-text" style="color:#f0924a">🟡 Neutre / Prudent</div>
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:8px; font-family:'Space Mono', monospace;">
+          Horizon: 6–12 mois
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric">
+        <div class="metric-key">ATH (Oct. 2025)</div>
+        <div class="metric-val neutral">26 120 pts</div>
+        <div class="metric-sub">Record historique</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Niv. Actuel (Avr. 2026)</div>
+        <div class="metric-val down">~24 045 pts</div>
+        <div class="metric-sub">-9% depuis ATH</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">AI CapEx 2026</div>
+        <div class="metric-val up">$700B</div>
+        <div class="metric-sub">+36% YoY — Hyperscalers</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Perf. 2025</div>
+        <div class="metric-val up">+21%</div>
+        <div class="metric-sub">Malgré tariffs &amp; volatilité</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Taux 10Y US</div>
+        <div class="metric-val down">~4.4%</div>
+        <div class="metric-sub">Pression sur valorisations</div>
+      </div>
+    </div>
+
+    <div class="analysis-grid wide">
+      <div class="card accent-left">
+        <div class="card-label">Moteur Principal — IA</div>
+        <div class="card-title">Le Boom de l'Intelligence Artificielle</div>
+        <div class="card-body">
+          Le NDX est le principal bénéficiaire de la révolution IA. Les "Magnificent Seven" (Apple, Microsoft, Nvidia, Alphabet, Amazon, Meta, Tesla) représentent plus de 41% de la capitalisation. Les hyperscalers (Google, Microsoft, AWS, Meta) devraient investir ~$700B en CapEx IA en 2026. Ce niveau d'investissement crée un plancher structurel pour l'indice.
+        </div>
+      </div>
+      <div class="card accent-left">
+        <div class="card-label">Risque Dominant — Valorisation</div>
+        <div class="card-title">L'"AI Fatigue" et la Pression des Taux</div>
+        <div class="card-body">
+          En mars 2026, le marché a basculé d'une logique "dépenser = croissance" à "montrez-moi le ROI". La remontée du 10Y US vers 4.4% comprime les multiples des valeurs de croissance. Les investisseurs demandent désormais une monétisation tangible des $600B+ de dépenses IA, créant de la volatilité sur les résultats trimestriels.
+        </div>
+      </div>
+    </div>
+
+    <div class="analysis-grid">
+      <div class="card">
+        <div class="card-label">Politique Monétaire</div>
+        <div class="card-title">La Fed en Position Délicate</div>
+        <div class="card-body">La Fed a réduit ses taux 3x en 2025. En 2026, face à l'inflation relancée par le conflit au Moyen-Orient et les tarifs Trump, elle est en pause. Seule 1 baisse de 25bp est attendue pour toute l'année. Un environnement "higher-for-longer" pèse structurellement sur le NDX.</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Tariffs &amp; Géopolitique</div>
+        <div class="card-title">L'Impact des Droits de Douane Trump</div>
+        <div class="card-body">Le "Liberation Day" du 2 avril 2025 a instauré des tarifs de 10% généralisés (+45% sur la Chine). Le NDX a brièvement plongé en territory bear. La résilience de la tech est liée à la nature immatérielle de ses revenus, mais les chaînes d'approvisionnement matérielles (semi-conducteurs) restent exposées.</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Prévisions Consensus</div>
+        <div class="card-title">Cibles 2026 des Analystes</div>
+        <div class="card-body">Bank of America : +4% (plancher des résultats). Morgan Stanley : +14% (reprise cyclique). Fourchette consensus entre 26 000 et 35 000 pts d'ici fin 2026. Facteurs déterminants : résultats Mag7, trajectoire des taux, progression de la monétisation IA.</div>
+      </div>
+    </div>
+
+    <!-- Quote -->
+    <div class="quote-block">
+      "The NDX is dealing with 'AI exhaustion,' though a $700 billion structural increase in AI capital expenditure in 2026 provides a fundamental floor for the tech sector."
+      <div class="quote-source">— MarketPulse / OANDA, Q2 2026 Outlook</div>
+    </div>
+
+    <!-- Risk table -->
+    <div class="section-divider"><h2>Matrice des risques</h2></div>
+    <div class="card">
+      <table class="risk-table">
+        <thead>
+          <tr><th>Facteur de Risque</th><th>Description</th><th>Impact</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Taux Longs Élevés</td><td>Le 10Y à 4.4%+ comprime les multiples des valeurs de croissance à duration longue</td><td><span class="impact high">ÉLEVÉ</span></td></tr>
+          <tr><td>Déception sur le ROI de l'IA</td><td>Si les revenus IA ne justifient pas le CapEx, risque de re-rating baissier des Mag7</td><td><span class="impact high">ÉLEVÉ</span></td></tr>
+          <tr><td>Choc Pétrolier / Inflation</td><td>L'escalade au Moyen-Orient pousse le Brent vers $100+, relançant l'inflation et repoussant la Fed</td><td><span class="impact med">MOYEN</span></td></tr>
+          <tr><td>Concentration des Indices</td><td>Les 7 premières valeurs = 41%+ du NDX. Un retournement de 2-3 géants peut ruiner l'ensemble</td><td><span class="impact med">MOYEN</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Video -->
+    <div class="section-divider"><h2>Ressource Vidéo</h2></div>
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/nhpHqTb3MnM" title="Nasdaq 100 2026 Analysis" allowfullscreen loading="lazy"></iframe>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       OIL — Crude Oil
+  ════════════════════════════════════════════ -->
+  <section id="oil" class="asset-section">
+
+    <div class="asset-hero">
+      <div>
+        <div class="asset-title">
+          <div class="asset-icon" style="background:rgba(232,93,58,0.1); border:1px solid rgba(232,93,58,0.25);">🛢</div>
+          <div>
+            <div class="asset-name">Crude Oil</div>
+            <div class="asset-fullname">WTI / Brent — Energy Commodity</div>
+          </div>
+        </div>
+        <p class="asset-summary">
+          Le marché pétrolier 2025–2026 est dominé par une dynamique contradictoire : un surplus structurel de l'offre (IEA : ~4 Mb/j d'excédent) face à des chocs géopolitiques soudains. Le conflit israélo-iranien de mars 2026 a fermé le Détroit d'Ormuz, propulsant le Brent vers <strong style="color:#fff">$103/baril</strong> (EIA, avril 2026). WTI oscille dans une fourchette volatile entre $55 et $110+.
+        </p>
+        <div class="tags" style="margin-top:16px">
+          <span class="tag bear">Surplus Offre Structurel</span>
+          <span class="tag bull">Choc Géopolitique</span>
+          <span class="tag neutral">OPEC+ Discipline</span>
+          <span class="tag bear">Transition Énergétique</span>
+          <span class="tag bull">Strait of Hormuz Premium</span>
+        </div>
+      </div>
+      <div class="sentiment-box">
+        <div class="sentiment-label">Sentiment Score</div>
+        <div class="sentiment-score" style="color:#f0924a">52</div>
+        <div class="sentiment-text" style="color:#f0924a">🟡 Très Volatile</div>
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:8px; font-family:'Space Mono', monospace;">
+          Piloté par la géopolitique
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric">
+        <div class="metric-key">Brent (Avr. 2026)</div>
+        <div class="metric-val up">~$103/b</div>
+        <div class="metric-sub">Pic Hormuz conflict</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">WTI 2025 Low</div>
+        <div class="metric-val down">$55.04</div>
+        <div class="metric-sub">Plus bas de mai 2025</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Surplus IEA 2026</div>
+        <div class="metric-val down">~4 Mb/j</div>
+        <div class="metric-sub">Pression baissière structurelle</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Shutins OPEC (Mars '26)</div>
+        <div class="metric-val down">7.5 Mb/j</div>
+        <div class="metric-sub">Iraq, Saoudi, UAE, Kuwait...</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Cible J.P. Morgan 2026</div>
+        <div class="metric-val neutral">$60/b</div>
+        <div class="metric-sub">Fondamentaux soft</div>
+      </div>
+    </div>
+
+    <div class="analysis-grid">
+      <div class="card accent-left" style="border-left-color: var(--red)">
+        <div class="card-label">Offre / Demande</div>
+        <div class="card-title">Un Marché Structurellement Excédentaire</div>
+        <div class="card-body">
+          L'IEA anticipe un surplus de ~4 Mb/j en 2026, même après révisions. L'OPEC prévoit l'équilibre à 106.5 Mb/j. La croissance de la demande mondiale ralentit : +860 000 b/j selon l'IEA. Les projets shale américains et l'énergie verte limitent structurellement l'upside des prix. Goldman Sachs est le plus baissier : $52/b WTI en moyenne.
+        </div>
+      </div>
+      <div class="card accent-left" style="border-left-color: var(--red)">
+        <div class="card-label">Géopolitique</div>
+        <div class="card-title">Le Détroit d'Ormuz — Wildcard #1</div>
+        <div class="card-body">
+          Le conflit entre l'Iran et Israël/USA en mars 2026 a perturbé les flux pétroliers du Détroit d'Ormuz (30% des exports mondiaux). 7.5 Mb/j sont shut-in. L'EIA anticipe un Brent à $115/b au pic en Q2 2026 avant retour vers $90 en fin d'année si le conflit se calme. Le risque géopolitique est le seul vrai driver haussier.
+        </div>
+      </div>
+      <div class="card accent-left" style="border-left-color: var(--red)">
+        <div class="card-label">OPEC+ &amp; Russie</div>
+        <div class="card-title">Gestion de la Production par l'Alliance</div>
+        <div class="card-body">
+          L'OPEC+ poursuit le déroulement progressif des coupes volontaires. La Russie voit ses flux redirigés : après le retrait partiel de l'Inde (pression Trump), les barils russes sont redirigés vers la Chine (+0.5 Mb/j). Les sanctions sur 70% du brut russe créent une géographie des flux inédite, sans impact majeur sur le prix mondial.
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="section-divider"><h2>Chronologie des événements clés</h2></div>
+    <div class="card">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-date">Mai 2025</div>
+          <div class="timeline-text">WTI chute à $55.04 — plus bas de l'année. Faiblesse macro mondiale, demande chinoise décevante, surplus OPEC+ supérieur aux attentes.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Juin 2025</div>
+          <div class="timeline-text">Rebond à $76.59 sur tensions Iran–Israël. Confirmation que la géopolitique prime les fondamentaux sur le court terme.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Mars 2026</div>
+          <div class="timeline-text">Escalade militaire US–Israël–Iran. Fermeture partielle du Détroit d'Ormuz. Pétrole +40% en un mois. Brent atteint $103/b.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Avr. 2026 — Aujourd'hui</div>
+          <div class="timeline-text">EIA anticipe un pic Brent à $115/b en Q2 2026. Trump envisage une de-escalation. Les marchés restent en mode "risk premium" élevé sur l'énergie.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote-block">
+      "With the region's proximity to major energy chokepoints, brief, geopolitically driven crude rallies are likely to continue, but these should eventually subside, leaving soft underlying global market fundamentals."
+      <div class="quote-source">— Natasha Kaneva, J.P. Morgan Global Research, 2026</div>
+    </div>
+
+    <!-- Risk table -->
+    <div class="section-divider"><h2>Matrice des risques</h2></div>
+    <div class="card">
+      <table class="risk-table">
+        <thead>
+          <tr><th>Facteur de Risque</th><th>Description</th><th>Impact</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Escalade Moyen-Orient</td><td>Fermeture durable du Détroit d'Ormuz = choc d'offre massif, Brent potentiellement >$150</td><td><span class="impact high">ÉLEVÉ</span></td></tr>
+          <tr><td>Décélération Chine</td><td>La Chine est le 1er importateur mondial. Une récession chinoise effondrerait la demande globale</td><td><span class="impact high">ÉLEVÉ</span></td></tr>
+          <tr><td>Dépassement de Production OPEC+</td><td>Irak, Kazakhstan et Russie ont historiquement du mal à respecter les quotas</td><td><span class="impact med">MOYEN</span></td></tr>
+          <tr><td>Transition Énergétique</td><td>Croissance des VE et des renouvelables réduit structurellement la demande à horizon 5–10 ans</td><td><span class="impact low">FAIBLE</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Video -->
+    <div class="section-divider"><h2>Ressource Vidéo</h2></div>
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/FxPyO0-hb5M" title="Oil Market Analysis 2026" allowfullscreen loading="lazy"></iframe>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       NVDA — Nvidia
+  ════════════════════════════════════════════ -->
+  <section id="nvda" class="asset-section">
+
+    <div class="asset-hero">
+      <div>
+        <div class="asset-title">
+          <div class="asset-icon" style="background:rgba(118,185,0,0.1); border:1px solid rgba(118,185,0,0.25);">⚡</div>
+          <div>
+            <div class="asset-name">NVIDIA</div>
+            <div class="asset-fullname">NVDA — NASDAQ — Semiconductors / AI Infrastructure</div>
+          </div>
+        </div>
+        <p class="asset-summary">
+          NVIDIA est le fournisseur d'infrastructure IA incontournable de l'ère moderne. Ses GPU Blackwell et Hopper alimentent les datacenters de Google, Microsoft, AWS, Meta et OpenAI. En FY2026, la société a affiché un chiffre d'affaires annuel record de <strong style="color:#fff">$215.9B (+65% YoY)</strong>, avec un revenu Q4 de $68.1B. Jensen Huang : <em>"Compute is revenues."</em>
+        </p>
+        <div class="tags" style="margin-top:16px">
+          <span class="tag bull">Monopole Infrastructure IA</span>
+          <span class="tag bull">Blackwell Sold Out</span>
+          <span class="tag bull">Data Center +66% YoY</span>
+          <span class="tag neutral">Valorisation Élevée</span>
+          <span class="tag bear">Risque Chine (Export Controls)</span>
+        </div>
+      </div>
+      <div class="sentiment-box">
+        <div class="sentiment-label">Sentiment Score</div>
+        <div class="sentiment-score" style="color:#3dd68c">85</div>
+        <div class="sentiment-text" style="color:#3dd68c">🟢 Très Bullish</div>
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:8px; font-family:'Space Mono', monospace;">
+          Strong Buy Consensus
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric">
+        <div class="metric-key">Rev. FY2026 (Annual)</div>
+        <div class="metric-val up">$215.9B</div>
+        <div class="metric-sub">+65% YoY</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Data Center FY2026</div>
+        <div class="metric-val up">$197.3B</div>
+        <div class="metric-sub">+71% YoY — 91% des revenus</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Q4 FY2026 Revenue</div>
+        <div class="metric-val up">$68.1B</div>
+        <div class="metric-sub">+22% QoQ / +94% YoY</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Net Income FY2026</div>
+        <div class="metric-val up">$120.1B</div>
+        <div class="metric-sub">Marge nette ~56%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Rachats + Dividendes</div>
+        <div class="metric-val neutral">$41B</div>
+        <div class="metric-sub">43% du FCF FY2026</div>
+      </div>
+    </div>
+
+    <div class="analysis-grid">
+      <div class="card accent-left" style="border-left-color:#76b900">
+        <div class="card-label">Blackwell Platform</div>
+        <div class="card-title">L'Architecture qui Domine le Monde</div>
+        <div class="card-body">
+          La plateforme Blackwell affiche des ventes "off the charts". Les GPU cloud sont <strong style="color:#fff">sold out</strong>. 9 gigawatts d'infrastructure Blackwell déployés chez les hyperscalers. La plateforme Rubin (successeur) est attendue 2026–2027, assurant la continuité technologique. Jensen Huang parle de "cycle vertueux de l'IA".
+        </div>
+      </div>
+      <div class="card accent-left" style="border-left-color:#76b900">
+        <div class="card-label">Demande Structurelle</div>
+        <div class="card-title">Le CapEx Hyperscaler — Un Floor Incompressible</div>
+        <div class="card-body">
+          Google, Microsoft, AWS et Meta ont augmenté leur CapEx combiné de ~$120B depuis début 2025 pour atteindre ~$700B. Nvidia est le fournisseur de >50% de ce budget en hardware GPU. CFO de Nvidia : visibilité sur $500B de revenus Blackwell/Rubin sur 2025–2026. "2026 is sold out. 2027 demand will follow."
+        </div>
+      </div>
+      <div class="card accent-left" style="border-left-color:#76b900">
+        <div class="card-label">AI Physique &amp; Robotique</div>
+        <div class="card-title">La Prochaine Frontière de Croissance</div>
+        <div class="card-body">
+          L'IA physique (robotique, véhicules autonomes, usines intelligentes) a contribué >$6B de revenus en FY2026. Le segment Automotive a progressé de +69% YoY. La convergence de l'IA générative avec l'IA physique représente le vecteur de croissance à 5 ans. CAGR attendu à long terme : +40%.
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="section-divider"><h2>Chronologie des Earnings &amp; Événements Clés</h2></div>
+    <div class="card">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-date">Q1 FY2026 — Avr. 2025</div>
+          <div class="timeline-text">Revenus : $44.1B. Lancement Blackwell. Jensen Huang annonce à GTC 2025 "l'IA physique révolutionnera les plus grandes industries."</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Q2 FY2026 — Août 2025</div>
+          <div class="timeline-text">Revenus : $46.7B (+56% YoY). Data Center : $41.1B. Blackwell Data Center +17% séquentiel. GPU GeForce RTX 5060 devient la x60-class la plus rapide de l'histoire.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Q3 FY2026 — Nov. 2025</div>
+          <div class="timeline-text">Record absolu à $57B de revenus (+62% YoY). Data Center : $51.2B (+66% YoY). Jensen : "Cloud GPUs are sold out."</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Q4 FY2026 — Fév. 2026</div>
+          <div class="timeline-text">Nouveau record : $68.1B. Annuel FY2026 : $215.9B. "Inflection de l'IA agentique". Guidance Q1 FY2027 supérieure aux attentes. Nvidia surperforme tous ses pairs Megacap en 2026.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote-block">
+      "Blackwell sales are off the charts, and cloud GPUs are sold out. Compute demand keeps accelerating and compounding across training and inference — each growing exponentially. We've entered the virtuous cycle of AI."
+      <div class="quote-source">— Jensen Huang, CEO NVIDIA, Q3 FY2026 Earnings Call, Nov. 2025</div>
+    </div>
+
+    <!-- Risk table -->
+    <div class="section-divider"><h2>Matrice des risques</h2></div>
+    <div class="card">
+      <table class="risk-table">
+        <thead>
+          <tr><th>Facteur de Risque</th><th>Description</th><th>Impact</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Export Controls Chine</td><td>Les restrictions US sur l'export de GPU avancés vers la Chine limitent un marché potentiellement immense</td><td><span class="impact high">ÉLEVÉ</span></td></tr>
+          <tr><td>Émergence Concurrents</td><td>AMD, Intel, et les puces internes des hyperscalers (Google TPU, Amazon Trainium) grignotent des parts</td><td><span class="impact med">MOYEN</span></td></tr>
+          <tr><td>Concentration Client</td><td>Les hyperscalers représentent >50% des revenus Data Center. Un ralentissement de leur CapEx serait immédiatement ressenti</td><td><span class="impact med">MOYEN</span></td></tr>
+          <tr><td>Contraintes Électriques</td><td>Les datacenters font face à des délais de connexion au réseau électrique de plusieurs années dans certains marchés</td><td><span class="impact low">FAIBLE</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Video -->
+    <div class="section-divider"><h2>Ressource Vidéo — NVIDIA GTC 2025 Keynote</h2></div>
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/6VjbmJME9Zc" title="NVIDIA GTC 2025 Jensen Huang" allowfullscreen loading="lazy"></iframe>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       GOLD — Or
+  ════════════════════════════════════════════ -->
+  <section id="gold" class="asset-section">
+
+    <div class="asset-hero">
+      <div>
+        <div class="asset-title">
+          <div class="asset-icon" style="background:rgba(245,200,66,0.1); border:1px solid rgba(245,200,66,0.3);">Au</div>
+          <div>
+            <div class="asset-name">Gold</div>
+            <div class="asset-fullname">XAU/USD — Precious Metal — Safe Haven</div>
+          </div>
+        </div>
+        <p class="asset-summary">
+          L'or a connu l'une de ses meilleures performances de l'histoire en 2025 (+60%), établissant plus de 50 ATH et franchissant les seuils de $3 000, $4 000 et $5 000/oz. Propulsé par un achat record des banques centrales, la faiblesse du dollar, les tensions géopolitiques et un afflux massif d'ETF, l'or confirme son statut de <strong style="color:#fff">valeur refuge systémique</strong>. ATH absolu : $5 595/oz en janvier 2026.
+        </p>
+        <div class="tags" style="margin-top:16px">
+          <span class="tag bull">Banques Centrales Acheteuses</span>
+          <span class="tag bull">De-dollarisation</span>
+          <span class="tag bull">Safe Haven Demand</span>
+          <span class="tag bull">ETF Inflows</span>
+          <span class="tag neutral">Taux Fed — Watch</span>
+        </div>
+      </div>
+      <div class="sentiment-box">
+        <div class="sentiment-label">Sentiment Score</div>
+        <div class="sentiment-score" style="color:#f5c842">81</div>
+        <div class="sentiment-text" style="color:#f5c842">🟢 Bullish Long-Terme</div>
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:8px; font-family:'Space Mono', monospace;">
+          Structurellement Haussier
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric">
+        <div class="metric-key">ATH Absolu (Jan. 2026)</div>
+        <div class="metric-val neutral">$5 595/oz</div>
+        <div class="metric-sub">Record historique</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Performance 2025</div>
+        <div class="metric-val up">+60%</div>
+        <div class="metric-sub">Top actif mondial 2025</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Achats BC 2025 (Q3)</div>
+        <div class="metric-val up">980 t</div>
+        <div class="metric-sub">+50% vs moy. 4 trim. préc.</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Prévision J.P. Morgan</div>
+        <div class="metric-val up">$5 055/oz</div>
+        <div class="metric-sub">Q4 2026</div>
+      </div>
+      <div class="metric">
+        <div class="metric-key">Cible Goldman Sachs</div>
+        <div class="metric-val up">$4 900/oz</div>
+        <div class="metric-sub">Fin 2026</div>
+      </div>
+    </div>
+
+    <div class="analysis-grid">
+      <div class="card accent-left" style="border-left-color:#f5c842">
+        <div class="card-label">Moteur #1 — Banques Centrales</div>
+        <div class="card-title">De-dollarisation &amp; Réserves Souveraines</div>
+        <div class="card-body">
+          Les banques centrales ont acheté >1 000 tonnes/an sur 2022–2024. En 2026, ~755 tonnes attendues — en baisse mécanique car les prix plus élevés permettent d'atteindre les objectifs en achetant moins de tonnes. La Chine a acheté de l'or 9 mois consécutifs. La Pologne mène les achats européens (+67 tonnes). Le mouvement de dé-dollarisation est structurel et non conjoncturel.
+        </div>
+      </div>
+      <div class="card accent-left" style="border-left-color:#f5c842">
+        <div class="card-label">Moteur #2 — Investisseurs</div>
+        <div class="card-title">ETF &amp; Demande Physique</div>
+        <div class="card-body">
+          En Q3 2025, la demande investisseurs + banques centrales a atteint <strong style="color:#fff">980 tonnes</strong> — un niveau record. Les ETF ont inversé leurs sorties pour entrer en afflux positif. La demande en lingots et pièces devrait dépasser 1 200 tonnes en 2026. La demande joaillière chute (-34%) face aux prix records, mais est largement compensée par la demande financière.
+        </div>
+      </div>
+      <div class="card accent-left" style="border-left-color:#f5c842">
+        <div class="card-label">Moteur #3 — Macro</div>
+        <div class="card-title">Dollar, Taux &amp; Risque Systémique</div>
+        <div class="card-body">
+          L'or bénéficie d'un dollar affaibli en 2025 (DXY vers 98). La Fed a coupé 3 fois en 2025. La corrélation inverse avec les taux réels reste déterminante. Nouveaux facteurs : la dette fédérale US dépasse $1T d'intérêts annuels (CBO), renforçant les craintes de débasement monétaire et la demande d'or comme couverture souveraine.
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="section-divider"><h2>Chronologie — Les jalons de l'or en 2024–2026</h2></div>
+    <div class="card">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-date">2022–2023</div>
+          <div class="timeline-text">Banques centrales achètent >1 000 tonnes/an, niveau record depuis 1971. La Russie post-sanctions accélère la course à l'or souverain.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Avril 2025</div>
+          <div class="timeline-text">Franchissement du seuil $3 000/oz sur les tarifs Trump ("Liberation Day"). Premier passage en territoire inconnu depuis 2024.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Octobre 2025</div>
+          <div class="timeline-text">Franchissement de $4 000/oz. L'or enregistre sa 50ème hausse record de l'année. Demande Q3 2025 : 1 313 tonnes — record historique absolu selon WGC.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Janvier 2026</div>
+          <div class="timeline-text">ATH absolu à <strong>$5 595/oz</strong>. L'or double sa valeur en moins de 2 ans. Performance 2025 : +60%.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Fév. – Mars 2026</div>
+          <div class="timeline-text">Correction vers $4 090 mi-mars (tensions Iran → hausse du pétrole → crainte de resserrement Fed). Rebond attendu si les taux se stabilisent.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote-block">
+      "Investors are watching gold not just as a hedge against inflation, but as a barometer for everything from central bank policy to geopolitical risk. We see further upside in gold, driven by a falling U.S. dollar."
+      <div class="quote-source">— Amy Gower, Morgan Stanley Metals & Mining Strategist, 2026</div>
+    </div>
+
+    <!-- Risk table -->
+    <div class="section-divider"><h2>Matrice des risques</h2></div>
+    <div class="card">
+      <table class="risk-table">
+        <thead>
+          <tr><th>Facteur de Risque</th><th>Description</th><th>Impact</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Pivot Hawkish Fed</td><td>Si la Fed remonte les taux face à l'inflation pétrolière, les taux réels montent et l'or corrige significativement</td><td><span class="impact high">ÉLEVÉ</span></td></tr>
+          <tr><td>Dollar Fort</td><td>Une reprise du DXY comprime mécaniquement le prix de l'or pour les acheteurs étrangers</td><td><span class="impact med">MOYEN</span></td></tr>
+          <tr><td>Destruction de Demande Joaillière</td><td>À $4000+/oz, la joaillerie (40% de la consommation) continue de s'effondrer</td><td><span class="impact med">MOYEN</span></td></tr>
+          <tr><td>Dé-escalade Géopolitique</td><td>La résolution des conflits (Moyen-Orient, Ukraine) réduirait la prime de risque safe-haven</td><td><span class="impact low">FAIBLE</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Video -->
+    <div class="section-divider"><h2>Ressource Vidéo — Gold 2026 Outlook</h2></div>
+    <div class="video-wrapper">
+      <iframe src="https://www.youtube.com/embed/RzHDIRW52Dk" title="Gold Analysis 2026" allowfullscreen loading="lazy"></iframe>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 — Analyse Fondamentale / News Analysis — Projet Finance</p>
+  <p>Sources : Bloomberg, J.P. Morgan, EIA, World Gold Council, NVIDIA SEC Filings, Grayscale Research, Morgan Stanley</p>
+</footer>
+
+<script>
+  function showAsset(id, btn) {
+    document.querySelectorAll('.asset-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>
